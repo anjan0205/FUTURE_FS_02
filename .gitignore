@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build
+client/dist/
+
+# Environment
+.env
+server/.env
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# IDES
+.vscode/
+.idea/
