@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy,
+  arrayUnion,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import {
   Users,
   PlusCircle,
@@ -11,8 +23,6 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const API_URL = '/api/leads';
 
 const App = () => {
   const [leads, setLeads] = useState([]);
@@ -28,8 +38,11 @@ const App = () => {
 
   const fetchLeads = async () => {
     try {
-      const res = await axios.get(API_URL);
-      setLeads(res.data);
+      setLoading(true);
+      const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const leadsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setLeads(leadsData);
     } catch (err) {
       console.error('Error fetching leads:', err);
     } finally {
@@ -40,7 +53,12 @@ const App = () => {
   const handleCreateLead = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(API_URL, newLead);
+      await addDoc(collection(db, 'leads'), {
+        ...newLead,
+        status: 'New',
+        notes: [],
+        createdAt: serverTimestamp(),
+      });
       setShowAddModal(false);
       setNewLead({ name: '', email: '', source: 'Website' });
       fetchLeads();
@@ -51,11 +69,9 @@ const App = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      const res = await axios.patch(`${API_URL}/${id}`, { status });
-      fetchLeads();
-      if (selectedLead && selectedLead._id === id) {
-        setSelectedLead(res.data);
-      }
+      await updateDoc(doc(db, 'leads', id), { status });
+      await fetchLeads();
+      setSelectedLead(prev => prev && prev.id === id ? { ...prev, status } : prev);
     } catch (err) {
       console.error('Error updating status:', err);
     }
@@ -63,9 +79,15 @@ const App = () => {
 
   const addNote = async (id, noteText) => {
     try {
-      const res = await axios.patch(`${API_URL}/${id}`, { note: noteText });
-      setSelectedLead(res.data);
-      fetchLeads();
+      const newNote = { content: noteText, createdAt: new Date().toISOString() };
+      await updateDoc(doc(db, 'leads', id), {
+        notes: arrayUnion(newNote),
+      });
+      await fetchLeads();
+      setSelectedLead(prev => {
+        if (!prev || prev.id !== id) return prev;
+        return { ...prev, notes: [...(prev.notes || []), newNote] };
+      });
     } catch (err) {
       console.error('Error adding note:', err);
     }
@@ -74,9 +96,9 @@ const App = () => {
   const deleteLead = async (id) => {
     if (window.confirm('Are you sure you want to delete this lead?')) {
       try {
-        await axios.delete(`${API_URL}/${id}`);
-        fetchLeads();
+        await deleteDoc(doc(db, 'leads', id));
         setSelectedLead(null);
+        fetchLeads();
       } catch (err) {
         console.error('Error deleting lead:', err);
       }
@@ -84,8 +106,8 @@ const App = () => {
   };
 
   const filteredLeads = leads.filter(lead =>
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
+    lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stats = [
@@ -168,7 +190,7 @@ const App = () => {
                 <AnimatePresence>
                   {filteredLeads.map((lead) => (
                     <motion.tr
-                      key={lead._id}
+                      key={lead.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -182,13 +204,15 @@ const App = () => {
                         <span className="source-badge">{lead.source}</span>
                       </td>
                       <td>
-                        <span className={`status-badge ${lead.status.toLowerCase()}`}>
+                        <span className={`status-badge ${lead.status?.toLowerCase()}`}>
                           {lead.status}
                         </span>
                       </td>
                       <td>
                         <span className="date-text">
-                          {new Date(lead.createdAt).toLocaleDateString()}
+                          {lead.createdAt?.toDate
+                            ? lead.createdAt.toDate().toLocaleDateString()
+                            : new Date(lead.createdAt).toLocaleDateString()}
                         </span>
                       </td>
                       <td>
@@ -282,7 +306,7 @@ const App = () => {
                   <h2>{selectedLead.name}</h2>
                   <p>{selectedLead.email}</p>
                 </div>
-                <button className="delete-btn" onClick={() => deleteLead(selectedLead._id)}>
+                <button className="delete-btn" onClick={() => deleteLead(selectedLead.id)}>
                   <Trash2 size={20} />
                 </button>
               </div>
@@ -293,7 +317,7 @@ const App = () => {
                   {['New', 'Contacted', 'Converted'].map(status => (
                     <button
                       key={status}
-                      onClick={() => updateStatus(selectedLead._id, status)}
+                      onClick={() => updateStatus(selectedLead.id, status)}
                       className={`status-btn ${selectedLead.status === status ? 'active' : ''}`}
                     >
                       {status}
@@ -305,7 +329,7 @@ const App = () => {
               <div>
                 <div className="section-label">Activity Feed / Notes</div>
                 <div className="notes-list">
-                  {selectedLead.notes.length === 0 ? (
+                  {!selectedLead.notes || selectedLead.notes.length === 0 ? (
                     <div className="note-empty">No notes yet. Add your first update below.</div>
                   ) : (
                     selectedLead.notes.map((note, i) => (
@@ -325,7 +349,7 @@ const App = () => {
                   onKeyDown={async (e) => {
                     if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
                       e.preventDefault();
-                      await addNote(selectedLead._id, e.target.value);
+                      await addNote(selectedLead.id, e.target.value);
                       e.target.value = '';
                     }
                   }}
