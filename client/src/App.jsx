@@ -112,28 +112,32 @@ const App = () => {
 
   const stats = [
     { label: 'Total Leads', value: leads.length, icon: Users, colorClass: 'primary' },
-    { label: 'Active Leads', value: leads.filter(l => l.status === 'Contacted').length, icon: Clock, colorClass: 'warning' },
-    { label: 'Converted', value: leads.filter(l => l.status === 'Converted').length, icon: CheckCircle, colorClass: 'success' },
+    { label: 'Follow-ups', value: leads.filter(l => l.status === 'Contacted').length, icon: Clock, colorClass: 'warning' },
+    { label: 'Successes', value: leads.filter(l => l.status === 'Converted').length, icon: CheckCircle, colorClass: 'success' },
   ];
 
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header>
+      <motion.header
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="header-brand">
           <div className="header-icon">
-            <Users size={28} />
+            <Users size={24} />
           </div>
           <div>
             <h1>Mini CRM</h1>
-            <p>Manage your client leads effectively</p>
+            <p>Professional Lead Management</p>
           </div>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <PlusCircle size={20} />
+          <PlusCircle size={18} />
           Add New Lead
         </button>
-      </header>
+      </motion.header>
 
       {/* Stats */}
       <div className="stats-grid">
@@ -141,9 +145,9 @@ const App = () => {
           <motion.div
             key={i}
             className="stat-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.1, duration: 0.4 }}
           >
             <div>
               <p className="stat-label">{stat.label}</p>
@@ -157,21 +161,25 @@ const App = () => {
       </div>
 
       {/* Main Table */}
-      <main>
+      <motion.main
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+      >
         <div className="glass-card">
           <div className="controls-bar">
             <div className="search-wrapper">
               <Search size={18} />
               <input
                 type="text"
-                placeholder="Search by name or email..."
+                placeholder="Search leads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <button className="filter-btn">
-              <Filter size={18} />
-              Filter
+              <Filter size={16} />
+              Filter Results
             </button>
           </div>
 
@@ -180,20 +188,21 @@ const App = () => {
               <thead>
                 <tr>
                   <th>Lead Info</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Action</th>
+                  <th>Origin</th>
+                  <th>Current Status</th>
+                  <th>Date Logged</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <AnimatePresence>
-                  {filteredLeads.map((lead) => (
+                <AnimatePresence mode="popLayout">
+                  {filteredLeads.map((lead, idx) => (
                     <motion.tr
                       key={lead.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
+                      transition={{ delay: Math.min(idx * 0.03, 0.5) }}
                       onClick={() => setSelectedLead(lead)}
                     >
                       <td>
@@ -211,13 +220,13 @@ const App = () => {
                       <td>
                         <span className="date-text">
                           {lead.createdAt?.toDate
-                            ? lead.createdAt.toDate().toLocaleDateString()
-                            : new Date(lead.createdAt).toLocaleDateString()}
+                            ? lead.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                            : lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
-                      <td>
-                        <button className="chevron-btn">
-                          <ChevronRight size={20} />
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="chevron-btn" style={{ padding: '8px', color: '#94a3b8' }}>
+                          <ChevronRight size={18} />
                         </button>
                       </td>
                     </motion.tr>
@@ -226,50 +235,57 @@ const App = () => {
               </tbody>
             </table>
             {filteredLeads.length === 0 && !loading && (
-              <div className="empty-state">No leads found. Start by adding one!</div>
+              <div className="empty-state">No leads available. Add your first lead to begin.</div>
             )}
             {loading && (
-              <div className="loading-state">Loading leads...</div>
+              <div className="loading-state">Updating...</div>
             )}
           </div>
         </div>
-      </main>
+      </motion.main>
 
       {/* Add Lead Modal */}
       <AnimatePresence>
         {showAddModal && (
           <div className="modal-backdrop">
-            <div className="modal-overlay" onClick={() => setShowAddModal(false)} />
+            <motion.div
+              className="modal-overlay"
+              onClick={() => setShowAddModal(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ position: 'absolute', inset: 0 }}
+            />
             <motion.div
               className="modal-content"
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
             >
-              <h2>Add New Lead</h2>
+              <h2 style={{ marginBottom: '24px' }}>New Lead Acquisition</h2>
               <form onSubmit={handleCreateLead}>
                 <div className="input-group">
-                  <label>Full Name</label>
+                  <label>Name</label>
                   <input
                     required
                     type="text"
                     value={newLead.name}
                     onChange={e => setNewLead({ ...newLead, name: e.target.value })}
-                    placeholder="John Doe"
+                    placeholder="Enter full name"
                   />
                 </div>
                 <div className="input-group">
-                  <label>Email Address</label>
+                  <label>Email</label>
                   <input
                     required
                     type="email"
                     value={newLead.email}
                     onChange={e => setNewLead({ ...newLead, email: e.target.value })}
-                    placeholder="john@example.com"
+                    placeholder="name@company.com"
                   />
                 </div>
-                <div className="input-group">
+                <div className="input-group" style={{ marginBottom: '24px' }}>
                   <label>Source</label>
                   <select value={newLead.source} onChange={e => setNewLead({ ...newLead, source: e.target.value })}>
                     <option>Website</option>
@@ -278,9 +294,9 @@ const App = () => {
                     <option>Other</option>
                   </select>
                 </div>
-                <div className="form-actions">
-                  <button type="button" onClick={() => setShowAddModal(false)} className="btn">Cancel</button>
-                  <button type="submit" className="btn btn-primary">Create Lead</button>
+                <div className="form-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setShowAddModal(false)} className="btn" style={{ background: '#f1f5f9', color: '#475569' }}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Save Lead</button>
                 </div>
               </form>
             </motion.div>
@@ -292,33 +308,51 @@ const App = () => {
       <AnimatePresence>
         {selectedLead && (
           <div className="drawer-backdrop">
-            <div className="drawer-overlay" onClick={() => setSelectedLead(null)} />
+            <motion.div
+              className="drawer-overlay"
+              onClick={() => setSelectedLead(null)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ position: 'absolute', inset: 0 }}
+            />
             <motion.div
               className="drawer-content"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              transition={{ type: 'spring', damping: 35, stiffness: 300 }}
             >
-              <div className="drawer-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
                 <div>
-                  <span className="drawer-label">Lead Details</span>
-                  <h2>{selectedLead.name}</h2>
-                  <p>{selectedLead.email}</p>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lead Profile</span>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginTop: '4px' }}>{selectedLead.name}</h2>
+                  <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>{selectedLead.email}</p>
                 </div>
-                <button className="delete-btn" onClick={() => deleteLead(selectedLead.id)}>
+                <button className="delete-btn" onClick={() => deleteLead(selectedLead.id)} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fef2f2', color: '#ef4444', cursor: 'pointer' }}>
                   <Trash2 size={20} />
                 </button>
               </div>
 
-              <div>
-                <div className="section-label">Status Workflow</div>
-                <div className="status-workflow">
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px' }}>Stage</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   {['New', 'Contacted', 'Converted'].map(status => (
                     <button
                       key={status}
                       onClick={() => updateStatus(selectedLead.id, status)}
-                      className={`status-btn ${selectedLead.status === status ? 'active' : ''}`}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: selectedLead.status === status ? 'var(--primary)' : '#e2e8f0',
+                        background: selectedLead.status === status ? '#eff6ff' : 'white',
+                        color: selectedLead.status === status ? 'var(--primary)' : '#64748b',
+                        fontWeight: '600',
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer'
+                      }}
                     >
                       {status}
                     </button>
@@ -326,26 +360,26 @@ const App = () => {
                 </div>
               </div>
 
-              <div>
-                <div className="section-label">Activity Feed / Notes</div>
-                <div className="notes-list">
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px' }}>Recent Activity</div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
                   {!selectedLead.notes || selectedLead.notes.length === 0 ? (
-                    <div className="note-empty">No notes yet. Add your first update below.</div>
+                    <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', color: '#94a3b8', fontSize: '0.875rem' }}>No logged records.</div>
                   ) : (
                     selectedLead.notes.map((note, i) => (
-                      <div key={i} className="note-card">
-                        <p>{note.content}</p>
-                        <span>{new Date(note.createdAt).toLocaleString()}</span>
+                      <div key={i} className="animate-entrance" style={{ padding: '12px', border: '1px solid #f1f5f9', borderRadius: '8px', marginBottom: '12px' }}>
+                        <p style={{ fontSize: '0.875rem', color: '#334155' }}>{note.content}</p>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>{new Date(note.createdAt).toLocaleDateString()}</span>
                       </div>
                     ))
                   )}
                 </div>
               </div>
 
-              <div className="input-group">
+              <div className="input-group" style={{ marginTop: '24px' }}>
                 <textarea
-                  placeholder="Add a progress note..."
-                  style={{ height: '90px', resize: 'none' }}
+                  placeholder="Log an interaction..."
+                  style={{ height: '80px', resize: 'none' }}
                   onKeyDown={async (e) => {
                     if (e.key === 'Enter' && !e.shiftKey && e.target.value.trim()) {
                       e.preventDefault();
@@ -354,11 +388,10 @@ const App = () => {
                     }
                   }}
                 />
-                <p className="note-input-hint">Press Enter to save note</p>
               </div>
 
-              <button className="close-drawer-btn" onClick={() => setSelectedLead(null)}>
-                Close Details
+              <button onClick={() => setSelectedLead(null)} style={{ marginTop: '24px', width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>
+                Return to Pipeline
               </button>
             </motion.div>
           </div>
